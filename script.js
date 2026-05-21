@@ -1,20 +1,28 @@
-// Parallax Scroll Effect
-document.addEventListener('scroll', () => {
-    const scrollPosition = window.pageYOffset;
-    
-    // Get all elements with parallax data attribute
+// Optimized Parallax Scroll Effect with RequestAnimationFrame
+let ticking = false;
+let scrollPosition = 0;
+
+window.addEventListener('scroll', () => {
+    scrollPosition = window.pageYOffset;
+    if (!ticking) {
+        window.requestAnimationFrame(updateParallax);
+        ticking = true;
+    }
+}, { passive: true });
+
+function updateParallax() {
     const parallaxElements = document.querySelectorAll('[data-parallax]');
     
     parallaxElements.forEach(element => {
         const parallaxValue = parseFloat(element.getAttribute('data-parallax'));
-        
-        // Calculate the parallax offset
         const offset = scrollPosition * parallaxValue;
         
-        // Apply the transform
-        element.style.transform = `translateY(${offset}px)`;
+        // Use transform3d for better performance
+        element.style.transform = `translate3d(0, ${offset}px, 0)`;
     });
-});
+    
+    ticking = false;
+}
 
 // Smooth scroll navigation
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -50,76 +58,85 @@ document.querySelector('.cta-button')?.addEventListener('click', () => {
     document.querySelector('#collections').scrollIntoView({ behavior: 'smooth' });
 });
 
-// Add scroll animation for elements
+// Scroll-triggered animations using Intersection Observer
 const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -100px 0px'
+    threshold: 0.2,
+    rootMargin: '0px 0px -50px 0px'
 };
 
 const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
-            entry.target.style.opacity = '1';
-            entry.target.style.transform = 'translateY(0)';
+            // Add animation class instead of inline styles to avoid conflicts
+            entry.target.classList.add('animate-in');
+            observer.unobserve(entry.target); // Only animate once
         }
     });
 }, observerOptions);
 
 // Observe all showcase items
 document.querySelectorAll('.showcase-text').forEach(item => {
-    item.style.opacity = '0';
-    item.style.transform = 'translateY(30px)';
-    item.style.transition = 'all 0.6s ease-out';
+    item.classList.add('scroll-animate');
     observer.observe(item);
 });
 
 // Observe gallery items
 document.querySelectorAll('.gallery-item').forEach(item => {
-    item.style.opacity = '0';
-    item.style.transform = 'translateY(30px)';
-    item.style.transition = 'all 0.6s ease-out';
+    item.classList.add('scroll-animate');
     observer.observe(item);
 });
 
 // Dynamic mouse parallax for shoe cards
 document.querySelectorAll('.shoe-card').forEach(card => {
+    let currentRotationX = 0;
+    let currentRotationY = 0;
+    
     card.addEventListener('mousemove', (e) => {
         const rect = card.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         
-        const angleX = (e.clientY - centerY) / 10;
-        const angleY = (e.clientX - centerX) / 10;
+        currentRotationX = (e.clientY - centerY) / 10;
+        currentRotationY = -(e.clientX - centerX) / 10;
         
-        card.style.transform = `perspective(1000px) rotateX(${angleX}deg) rotateY(${-angleY}deg)`;
+        // Use translate3d for better performance
+        card.style.transform = `perspective(1000px) rotateX(${currentRotationX}deg) rotateY(${currentRotationY}deg)`;
     });
     
     card.addEventListener('mouseleave', () => {
-        card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+        card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+        card.style.transition = 'transform 0.3s ease-out';
+    });
+    
+    card.addEventListener('mouseenter', () => {
+        card.style.transition = 'none';
     });
 });
 
-// Add scroll velocity effect
-let lastScrollTop = 0;
-let scrollVelocity = 0;
+// Consolidated scroll event handler for navbar
+let lastScrollPosition = 0;
+let navbarScrollRaf = false;
 
-window.addEventListener('scroll', () => {
-    const currentScroll = window.pageYOffset;
-    scrollVelocity = currentScroll - lastScrollTop;
-    lastScrollTop = currentScroll;
-});
-
-// Navbar background change on scroll
-window.addEventListener('scroll', () => {
+function updateNavbarOnScroll() {
     const navbar = document.querySelector('.navbar');
-    if (window.pageYOffset > 50) {
+    const scrollPos = window.pageYOffset;
+    
+    if (scrollPos > 50) {
         navbar.style.background = 'rgba(15, 15, 35, 0.98)';
         navbar.style.boxShadow = '0 5px 20px rgba(0, 212, 255, 0.2)';
     } else {
         navbar.style.background = 'rgba(15, 15, 35, 0.95)';
         navbar.style.boxShadow = 'none';
     }
-});
+    navbarScrollRaf = false;
+}
+
+window.addEventListener('scroll', () => {
+    if (!navbarScrollRaf) {
+        window.requestAnimationFrame(updateNavbarOnScroll);
+        navbarScrollRaf = true;
+    }
+}, { passive: true });
 
 // Animated counter for stats (optional enhancement)
 const animateValue = (element, start, end, duration) => {
